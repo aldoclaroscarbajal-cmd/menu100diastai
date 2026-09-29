@@ -1,0 +1,786 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GlucoMenú Tailandés 100D - Planificador Diabético Tipo 2</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            thai: {
+              50: '#f0fdf4',
+              100: '#dcfce7',
+              500: '#10b981',
+              600: '#059669',
+              700: '#047857',
+              800: '#065f46',
+              900: '#064e3b',
+            },
+            siam: {
+              50: '#fffbe1',
+              100: '#fef3c7',
+              500: '#d97706',
+              600: '#b45309',
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Import Map for ES Modules -->
+  <script type="importmap">
+    {
+      "imports": {
+        "react": "https://esm.sh/react@18.2.0",
+        "react-dom": "https://esm.sh/react-dom@18.2.0",
+        "react-dom/client": "https://esm.sh/react-dom@18.2.0/client",
+        "recharts": "https://esm.sh/recharts@2.12.0?external=react,react-dom",
+        "lucide-react": "https://esm.sh/lucide-react@0.344.0?external=react",
+        "clsx": "https://esm.sh/clsx@2.1.0",
+        "tailwind-merge": "https://esm.sh/tailwind-merge@2.2.1"
+      }
+    }
+  </script>
+
+  <!-- Babel Standalone for transpiling JSX -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    .animate-fade-in {
+      animation: fadeIn 0.3s ease-in-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .plate-gradient-veg { background: radial-gradient(circle, #dcfce7 0%, #86efac 100%); }
+    .plate-gradient-prot { background: radial-gradient(circle, #e0e7ff 0%, #a5b4fc 100%); }
+    .plate-gradient-carb { background: radial-gradient(circle, #fef3c7 0%, #fde047 100%); }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans antialiased min-h-screen">
+  <div id="root" class="w-full h-auto min-h-full"></div>
+
+  <script type="text/babel" data-type="module">
+    import React, { useState, useEffect, useMemo } from 'react';
+    import { createRoot } from 'react-dom/client';
+    import { 
+      Utensils, Calendar, RefreshCw, PieChart as PieChartIcon, ShieldCheck,
+      ChevronLeft, ChevronRight, Search, Bookmark, Flame, CheckCircle2,
+      Award, Sparkles, BookOpen, Heart, Info, AlertTriangle, Leaf
+    } from 'lucide-react';
+
+    // Database of authentic Thai dishes modified for Diabetes Type 2 (Low GI / Controlled Carbs)
+    const DESAYUNOS_THAI = [
+      { id: 'dt1', nombre: 'Jok de Arroz de Coliflor con Cerdo Magro, Kion y Huevo Pochado', ch: 14, desc: 'Sopa estilo Congee elaborada a base de coliflor rallada finamente, medallones de cerdo picado sin grasa, jengibre fresco en tiras y 1 huevo a media cocción.', prep: 'Cocinar la coliflor procesada con fondo de ave desgrasado, ajo y kion molido. Servir bien caliente con cebollín picado y un toque de salsa de soja baja en sodio.' },
+      { id: 'dt2', nombre: 'Kai Jeow: Omelette Tailandés con Albahaca Sagrada y Brotes de Soya', ch: 6, desc: '2 huevos batidos con albahaca sagrada (Krapow), brotes de soya frescos (Tua Mawk) y champiñones en láminas.', prep: 'Cocinar en sartén teflón con unas gotas de aceite de ajonjolí o coco. Acompañar con rodajas de pepino fresco para amortiguar.' },
+      { id: 'dt3', nombre: 'Kai Tohn: Huevo al Vapor Tailandés con Camarones y Cebolla China', ch: 5, desc: 'Flan salado al vapor de huevo enriquecido con camarones frescos, cilantro y ajo deshidratado.', prep: 'Batir 2 huevos con caldo de verduras sin sal. Cocinar al vapor en un recipiente resistente al calor durante 12 minutos.' },
+      { id: 'dt4', nombre: 'Sopa Tom Yum Ligera de Pollo con Champriñones Straw y Lemongrass', ch: 11, desc: 'Caldo claro aromático de lemongrass, té de galanga, hojas de lima kaffir y pechuga de pollo deshilachada.', prep: 'Hervir las hierbas tailandesas frescas, agregar el pollo y champiñones. Finalizar con jugo de lima sutil fresco. Sin crema de coco ni pasta de ají azucarada.' },
+      { id: 'dt5', nombre: 'Tofu de Soya Salteado al Ajo y Pimienta Blanca con Repollo', ch: 9, desc: 'Tofu firme en cubos salteado con ajo picado, pimienta blanca de Chanthaburi y tiras de repollo blanco.', prep: 'Dorar el tofu en la sartén. Añadir el ajo y repollo hasta que quede crocante. Aderezar con un chorrito de Nam Pla (salsa de pescado) ligera.' },
+      { id: 'dt6', nombre: 'Salchicha Isan Magra Casera con Jengibre Fresco y Maní Tostado', ch: 12, desc: '2 salchichas artesanales de cerdo picado bajo en grasa fermentado con ajo, servido con trozos de jengibre crudo y 10g de maní tostado.', prep: 'Sancochar o hornear las salchichas sin aceite añadido. Consumir intercalando con hojas de lechuga fresca y ají tailandés.' },
+      { id: 'dt7', nombre: 'Satay de Pechuga de Pollo a la Plancha con Dip de Maní Keto', ch: 8, desc: 'Brochetas de pollo marinadas en cúrcuma fresca y semillas de cilantro con salsa de maní artesanal (sin azúcar añadida).', prep: 'Macerar el pollo con cúrcuma y leche de coco ligera. Para la salsa, moler maní tostado con leche de coco light y endulzante de fruto del monje.' },
+      { id: 'dt8', nombre: 'Pandan Toast Integral de Chía con Pollo Deshilachado y Palta', ch: 19, desc: '1/2 tajada de pan integral denso infusionado con extracto natural de hoja de Pandan, pechuga deshilachada y palta.', prep: 'Tostar el pan rico en fibra, untar la palta machacada y colocar la proteína encima. Espolvorear ajonjolí negro.' },
+      { id: 'dt9', nombre: 'Sopa Poh Tak de Mariscos Aromática con Limón y Ají', ch: 8, desc: 'Consomé marinero claro con calamar, pescado blanco, albahaca tailandesa y bastante zumo de lima.', prep: 'Servir muy caliente. El sabor ácido y especiado ayuda a estimular el metabolismo sin aportar azúcares.' },
+      { id: 'dt10', nombre: 'Salteado de Brotes de Bambú con Huevo Revuelto y Cilantro', ch: 10, desc: 'Brotes de bambú tiernos en tiras salteados con 2 huevos enteros y especias del norte de Tailandia.', prep: 'Enjuagar bien los brotes de bambú. Saltear con aceite de oliva o sésamo a fuego alto durante 4 minutos.' }
+    ];
+
+    const SNACKS_THAI = [
+      { id: 'st1', nombre: 'Som Tum Mild: Ensalada de Papaya Verde sin Azúcar con Maní', ch: 8, desc: '60g de papaya verde rallada en tiras finas con judías verdes, tomate cherry, lima sutil y 1 cda de maní.', prep: 'Majar en mortero sin agregar azúcar de palma tradicional. Endulzar opcionalmente con 2 gotas de estevia o fruto del monje.' },
+      { id: 'st2', nombre: 'Pepino Tailandés en Rodajas con Dip Nam Prik Ong Light', ch: 6, desc: 'Pepinos crocantes servidos con salsa tradicional de tomate, cerdo desgrasado y pasta de chili suave.', prep: 'Usar los rodajas de pepino frío como cuchara natural para el aderezo salado-ácido.' },
+      { id: 'st3', nombre: 'Infusión de Té de Pandan Caliente sin Azúcar con 5 Castañas de Cajú', ch: 4, desc: 'Té herbal infusionado con hojas frescas de Pandan (aroma avainillado natural) + 5 anacardos tostados.', prep: 'Hervir 3 hojas de pandan en 300ml de agua por 10 minutos. Tomar tibio o helado sin endulzante.' },
+      { id: 'st4', nombre: 'Melón Amargo (Bitter Melon / Mara) Salteado con Huevo', ch: 5, desc: '50g de melón amargo cortado en rodajas finas salteado rápidamente con 1 huevo batido.', prep: 'Remojar el melón en agua con sal 10 minutos para suavizar el amargor. El Mara es conocido por respaldar la sensibilidad insulínica.' },
+      { id: 'st5', nombre: 'Agua de Coco Fresca Medida (100ml) con 6 Almendras', ch: 11, desc: 'Porción justa de agua de coco natural (no industrializada) para aporte electrolítico + almendras crudas.', prep: 'Servir fría. Controlar estrictamente la porción a 100ml para evitar excesos de fructosa.' },
+      { id: 'st6', nombre: 'Tofu Firme Horneado Crocante con Dip Nam Jim Jaew Keto', ch: 5, desc: '4 cubos de tofu marinado al horno acompañados de salsa picante con chile seco y zumo de lima.', prep: 'Hornear a 200°C por 15 min hasta que la capa exterior esté dorada y firme.' },
+      { id: 'st7', nombre: 'Huevos de Codorniz al Vapor con Pimienta Blanca Tailandesa', ch: 1, desc: '4 huevos de codorniz sancochados 3 minutos y sazonados con pimienta de Chanthaburi.', prep: 'Un snack ultra proteico de cero impacto en las lecturas de glucosa en sangre.' },
+      { id: 'st8', nombre: 'Ensalada Yam Woon Sen Adaptada con Fideos Shirataki y Camarón', ch: 7, desc: 'Porción chica de fideos de konjac/shirataki con camarón picado, cebolla roja, apio y limón.', prep: 'Los fideos Shirataki aportan cero carbohidratos digestibles, replicando perfectamente los fideos celofán.' },
+      { id: 'st9', nombre: 'Edamame al Vapor con Sal Marina y Semillas de Ajonjolí', ch: 8, desc: '70g de vainas de soya verde al vapor espolvoreadas con sal fina y sésamo tostado.', prep: 'Sancochar 4 minutos en agua hirviendo. Aporta fibra dietética excelente para retrasar el vaciado gástrico.' },
+      { id: 'st10', nombre: 'Pescado Crispy Seco Tailandés sin Harina ni Azúcar', ch: 2, desc: 'Trozos de filete de pescado deshidratado y tostado con especias aromáticas thai.', prep: 'Tostar en freidora de aire sin aceites ni empanizados.' }
+    ];
+
+    const ALMUERZOS_THAI = [
+      { id: 'at1', nombre: 'Pad Krapow Gai con Arroz de Coliflor y Huevo Frito Light', ch: 12, desc: 'Pechuga de pollo picada a mano salteada con abundante albahaca sagrada (Krapow), ajo y ají limo thai, servida sobre arroz de coliflor.', prep: 'Saltear el pollo al wok con salsa de pescado y soja sin azúcar. Servir sobre coliflor rallada al ajo y coronar con huevo frito con spray de aceite.' },
+      { id: 'at2', nombre: 'Tom Kha Gai con Arroz Integral Jasmine Medido (50g)', ch: 22, desc: 'Sopa reconfortante de pollo en leche de coco ligera, galanga fresca, lemongrass y champiñones + porción pequeña de arroz integral.', prep: 'Utilizar leche de coco diluida en caldo de verduras para reducir densidad calórica. Sazonar con lima recién exprimida.' },
+      { id: 'at3', nombre: 'Curry Verde Tailandés (Gaeng Keow Wan) con Berenjena Thai y Pollo', ch: 15, desc: 'Guiso cremoso verde con pasta natural de curry, berenjenas redondas thai, brotes de bambú y pechuga de pollo.', prep: 'Elaborar la pasta sin adición de azúcar de palma. Usar leche de coco light y servir con abundante ensalada de repollo.' },
+      { id: 'at4', nombre: 'Pad Thai Keto con Fideos Shirataki, Tofu y Camarones', ch: 14, desc: 'Fideos de konjac salteados al estilo callejero de Bangkok con camarones, tofu en cubitos, brotes de soya, huevo y maní.', prep: 'Reemplazar los fideos de arroz densos por konjac. Usar salsa de tamarindo sin azúcar y endulzante de fruto del monje.' },
+      { id: 'at5', nombre: 'Crying Tiger (Luea Rong Hai) Lomo de Res a la Parrilla con Ensalada Thai', ch: 10, desc: '150g de lomo de res magro sellado a la parrilla servido en láminas con ensalada de hierbas y dip salado Nam Jim Jaew.', prep: 'Macerar la carne únicamente con ajo, pimienta y salsa de soja. Servir sobre abundante lechuga y pepinos en rodajas.' },
+      { id: 'at6', nombre: 'Pla Nueng Manao: Pescado al Vapor con Limón, Ajo y Ají Verde', ch: 11, desc: 'Filete de pescado blanco (tilapia o lubina) al vapor bañado en caldo ácido de lima sutil, ajo picado y cilantro.', prep: 'Cocinar al vapor durante 10 minutos dentro de hojas de plátano o vaporera de bambú. Muy liviano y rico en proteínas.' },
+      { id: 'at7', nombre: 'Massaman Curry de Res con Camote Tailandés Medido (40g)', ch: 21, desc: 'Guiso aromático con canela, anís estrellado, maní entero y trozos magros de res + 40g de camote cocido.', prep: 'Guisar a fuego lento. El camote debe ser sancochado previamente para formar almidón resistente.' },
+      { id: 'at8', nombre: 'Pad See Ew de Fideos de Zucchini con Cerdo y Gai Lan', ch: 9, desc: 'Tiras de zucchini (calabacín) salteadas a fuego muy alto con cerdo magro, brócoli chino (Gai Lan) y huevo hilado.', prep: 'El brócoli chino aporta fibra crujiente y calcio. Saltear rápidamente al wok para no ablandar el zucchini.' },
+      { id: 'at9', nombre: 'Pescado Choo Chee con Salsa de Red Curry Ligera y Lima Kaffir', ch: 12, desc: 'Pescado blanco a la plancha bañado en salsa especiada de curry rojo suave perfumada con tiras de hoja de lima kaffir.', prep: 'Preparar la salsa reduciendo pasta de curry rojo con leche de almendras/coco ligera sin azúcar.' },
+      { id: 'at10', nombre: 'Larb Gai: Ensalada Entibiada de Pollo Picado con Menta y Limón', ch: 10, desc: 'Pollo desmenuzado salteado con hierbabuena, menta, cebolla morada, ají en polvo y polvo de arroz integral tostado (5g).', prep: 'Servir envuelto en hojas de repollo crudo o lechuga romana como tacos naturales sin carbohidratos procesados.' },
+      { id: 'at11', nombre: 'Salteado Gai Pad Med Mamuang: Pollo con Anacardos y Pimientos', ch: 16, desc: 'Pechuga en cubos salteada con pimientos rojos, cebolla, cebollín y 20g de anacardos (cashews) tostados.', prep: 'Evitar el empanizado del pollo. Dorar directamente en la sartén teflón con salsa de ostra baja en sodio.' },
+      { id: 'at12', nombre: 'Khao Pad Frito de Coliflor con Carne de Cangrejo y Cebollín', ch: 10, desc: 'Arroz de coliflor salteado al estilo frito tailandés con carne de cangrejo real o camarones y brotes verdes.', prep: 'Usar sartén bien caliente para secar la coliflor y darle la textura idéntica al arroz salteado tradicional.' },
+      { id: 'at13', nombre: 'Tom Yum Goong: Sopa Tradicional de Camarones Gigantes y Champriñones', ch: 11, desc: 'La icónica sopa tailandesa agripicante repleta de langostinos, hongos straw, cilantro tailandés y jugo de lima.', prep: 'Sin añadir pasta de ají azucarada. Usar chilies frescos machacados y caldo concentrado de cabezas de camarón.' },
+      { id: 'at14', nombre: 'Pad Prik Gaeng con Cerdo Magro y Habichuelas Largas Thai', ch: 11, desc: 'Tiras de cerdo salteadas en pasta de curry rojo fresco con vainitas/habichuelas largas crujientes.', prep: 'Las habichuelas deben quedar al dente para maximizar su contenido de fibra intacta.' },
+      { id: 'at15', nombre: 'Ternera Salteada con Pimienta Verde Fresca (Prik Thai On) y Ajo', ch: 8, desc: 'Lomo de res con espigas de pimienta verde fresca, ajo aplastado y albahaca dulce.', prep: 'La pimienta fresca estimula la digestión y añade un picor aromático sin calorías ni carbohidratos.' },
+      { id: 'at16', nombre: 'Salmón a la Parrilla con Salsa Panang Curry Ligera y Espárragos', ch: 12, desc: 'Filete de salmón rico en Omega-3 bañado con salsa Panang reducida y espárragos salteados.', prep: 'Parrillar el salmón con su propia piel crujiente. Servir con la salsa sobre la cama de espárragos.' },
+      { id: 'at17', nombre: 'Yum Nua: Ensalada Tailandesa de Lomo de Res con Tomate y Pepino', ch: 9, desc: 'Finitas tajadas de carne de res tibia mezcladas con lechuga, tomate cherry, cilantro y aderezo cítrico de lima.', prep: 'Mezclar la carne recién salida de la plancha con los vegetales fríos para contrastar texturas.' },
+      { id: 'at18', nombre: 'Calamar Salteado al Ajo Crispy y Lemongrass con Vegetales', ch: 10, desc: 'Anillos de calamar fresco salteados con hierba luisa, ajo crocante y pimientos verdes.', prep: 'Cocinar el calamar únicamente 2 minutos para mantener suavidad y evitar sobrecocción.' },
+      { id: 'at19', nombre: 'Curry Rojo de Pato Magro con Bambú y Albahaca', ch: 14, desc: 'Pechuga de pato sin piel horneada en salsa de curry rojo con brotes de bambú frescos.', prep: 'Retirar la grasa visible del pato antes de incorporar al guiso ligero de curry.' },
+      { id: 'at20', nombre: 'Pescado Pla Lard Prik con Salsa de Chilies Dulces Keto', ch: 13, desc: 'Pescado entero o filete horneado con salsa casera agridulce hecha con tomate, ají y fruta del monje.', prep: 'Hornear el pescado a fuego alto para lograr la textura crocante sin freír en inmersión de aceite.' }
+    ];
+
+    const CENAS_THAI = [
+      { id: 'ct1', nombre: 'Sopa Poh Tak de Pescado Blanco con Hongos y Albahaca', ch: 8, desc: 'Caldo reconfortante y liviano de pescado con champiñones en láminas, zumo de lima y albahaca tailandesa.', prep: 'Ideal para la cena por su facilísima digestión y nulo contenido de grasas pesadas.' },
+      { id: 'ct2', nombre: 'Salteado de Brócoli Chino (Gai Lan) con Tofu Firme al Ajo', ch: 7, desc: 'Tallos y hojas de Gai Lan salteados al wok con ajo picado, tofu deshidratado y salsa de soya sin azúcar.', prep: 'Saltear durante 3 minutos a fuego muy alto. Conserva todo el color verde brillante y sus glucosinolatos.' },
+      { id: 'ct3', nombre: 'Sopa de Huevo Tailandesa (Egg Drop Thai) con Cebolla China y Kion', ch: 5, desc: 'Sopa transparente de consomé de pollo con hilos de huevo batido, jengibre en tiras y cebollín.', prep: 'Al apagar el fuego, incorporar el huevo batido revolviendo en círculos suaves para formar hilos delgados.' },
+      { id: 'ct4', nombre: 'Ensalada Larb de Tofu y Champriñones con Limón y Cilantro', ch: 8, desc: 'Tofu desmenuzado y hongos salteados aderezados con menta, zumo de lima sutil y hojuelas de chili.', prep: 'Servir en cunas de hojas de lechuga. Muy refrescante para terminar el día.' },
+      { id: 'ct5', nombre: 'Pechuga de Pollo al Vapor con Lemongrass y Ensalada de Repollo', ch: 6, desc: 'Pechuga infunda con tallos de lemongrass al vapor, acompañada de ensalada de repollo morado y blanco.', prep: 'Aderezar el repollo con vinagre de coco y un toque de sal marina.' },
+      { id: 'ct6', nombre: 'Curry Amarillo Ligero de Camarones con Zapallo Kabocha Medido', ch: 14, desc: 'Sopa de curry amarillo con cúrcuma, camarones y 40g de calabaza/zapallo thai (kabocha).', prep: 'El zapallo Kabocha aporta cremosidad natural sin necesidad de harinas o espesantes.' },
+      { id: 'ct7', nombre: 'Salteado de Pak Choy / Bok Choy con Ajo y Aceite de Sésamo', ch: 5, desc: 'Matas enteras de Pak Choy salteadas al vapor con ajo dorado y gotas de aceite aromático de sésamo.', prep: 'Un plato verdaderamente bajo en carbohidratos y saturado de antioxidantes y agua.' },
+      { id: 'ct8', nombre: 'Brochetas Satay de Tofu a la Parrilla con Dip Nam Jim Jaew', ch: 7, desc: 'Tofu firme marinado en especias tailandesas a la parrilla con salsa ácida de ají y cilantro.', prep: 'Dorar bien los bordes del tofu para conseguir un aroma ahumado irresistible.' },
+      { id: 'ct9', nombre: 'Gaeng Jowd: Caldo Claro Tailandés con Tofu Silken y Cerdo Picado', ch: 6, desc: 'Sopa suave casera de Bangkok con cubos de tofu sedoso, esferas de cerdo magro y cilantro.', prep: 'Plato tradicional nocturno en los hogares tailandeses para favorecer el descanso y nivelar la glucosa nocturna.' },
+      { id: 'ct10', nombre: 'Sopa de Zapallo Kabocha con Leche de Coco Light y Kion', ch: 13, desc: 'Crema ligera de calabaza tailandesa aromatizada con jengibre picado y leche de coco baja en grasa.', prep: 'Cocinar la calabaza con su cáscara bien lavada (aporta extra fibra) y licuar bien fino.' }
+    ];
+
+    const generate100DaysThaiMenu = () => {
+      const days = [];
+      for (let i = 1; i <= 100; i++) {
+        const des = DESAYUNOS_THAI[(i - 1) % DESAYUNOS_THAI.length];
+        const snk1 = SNACKS_THAI[(i - 1) % SNACKS_THAI.length];
+        const alm = ALMUERZOS_THAI[(i - 1) % ALMUERZOS_THAI.length];
+        const snk2 = SNACKS_THAI[(i + 3) % SNACKS_THAI.length];
+        const cen = CENAS_THAI[(i - 1) % CENAS_THAI.length];
+
+        const totalCh = des.ch + snk1.ch + alm.ch + snk2.ch + cen.ch;
+
+        days.push({
+          dia: i,
+          titulo: `Día ${i}: ${alm.nombre.split(' con ')[0]}`,
+          totalCarbohidratos: totalCh,
+          categoria: totalCh <= 55 ? 'Muy Bajo CH' : totalCh <= 75 ? 'Zona Ideal' : 'Moderado Ajustado',
+          comidas: {
+            desayuno: { ...des, tiempo: 'Desayuno Thai (7:30 AM)' },
+            snack1: { ...snk1, tiempo: 'Snack Mañana (10:30 AM)' },
+            almuerzo: { ...alm, tiempo: 'Almuerzo Criollo Thai (1:30 PM)' },
+            snack2: { ...snk2, tiempo: 'Snack Tarde (5:00 PM)' },
+            cena: { ...cen, tiempo: 'Cena Ligera Thai (8:00 PM)' }
+          },
+          tipAntiPico: i % 3 === 0 
+            ? 'En Tailandia se consume Melón Amargo (Mara) o té de Pandan antes de comer. Contiene compuestos glucosinolatos que respaldan la absorción progresiva de carbohidratos.' 
+            : i % 3 === 1 
+            ? 'Acompaña tu comida con un shot de agua con 1 cucharada de vinagre de coco o zumo de 1 lima sutil fresca justo antes del primer bocado.' 
+            : 'Si incluyes arroz integral Jasmine o camote thai, cocínalos el día anterior y mantelos en refrigeración 12 horas. Esto crea Almidón Resistente tipo 3 que reduce su impacto glucémico.',
+          sustitucionSugerida: {
+            original: 'Arroz Jasmine Blanco Tradicional (150g)',
+            sustituto: 'Arroz de Coliflor al Ajo (150g) o Konjac Rice',
+            ahorroCh: 40
+          }
+        });
+      }
+      return days;
+    };
+
+    const SUSTITUCIONES_THAI = [
+      { id: 1, original: 'Arroz Jasmine Blanco Cocido', cantOrig: '1 taza (150g)', chOrig: 45, igOrig: 89, sustituto: 'Arroz de Coliflor o Konjac Rice', cantSust: '1 taza (150g)', chSust: 5, igSust: 15, ahorro: 40, tip: 'Rallar la coliflor o usar fideos/arroz de Konjac bien lavados. Saltear con ajo y sal marina 3 minutos al wok.' },
+      { id: 2, original: 'Fideos de Arroz Pad Thai', cantOrig: '1 plato (150g)', chOrig: 48, igOrig: 80, sustituto: 'Fideos Shirataki / Zoodles de Zucchini', cantSust: '1 plato (150g)', chSust: 4, igSust: 15, ahorro: 44, tip: 'Los fideos Shirataki (Konjac) absorben todo el sabor del Pad Thai (tamarindo, ají, maní) sin subir la glucosa.' },
+      { id: 3, original: 'Azúcar de Palma (Nam Taan Preep)', cantOrig: '2 cdas (25g)', chOrig: 24, igOrig: 70, sustituto: 'Endulzado Fruto del Monje / Estevia Liquid', cantSust: 'Al gusto (0g)', chSust: 0, igSust: 0, ahorro: 24, tip: 'Crucial para curries y salsas agridulces tailandesas. Da el dulzor exacto con cero carga glucémica.' },
+      { id: 4, original: 'Salsa Sweet Chili Industrial', cantOrig: '3 cdas (45ml)', chOrig: 21, igOrig: 75, sustituto: 'Nam Jim Jaew Casero Keto', cantSust: '3 cdas (45ml)', chSust: 2, igSust: 15, ahorro: 19, tip: 'Mezclar zumo de lima sutil, salsa de pescado Nam Pla, chilies secos molidos y fruto del monje en vez de jarabe dulce.' },
+      { id: 5, original: 'Leche de Coco Concentrada Dulce', cantOrig: '1 vaso (200ml)', chOrig: 18, igOrig: 55, sustituto: 'Leche de Coco Ligera / Almond Coconut Blend', cantSust: '1 vaso (200ml)', chSust: 4, igSust: 25, ahorro: 14, tip: 'Mezclar leche de coco natural con agua o leche de almendras sin azúcar para reducir calorías y carbohidratos.' },
+      { id: 6, original: 'Papaya Madura Dulce en Som Tum', cantOrig: '1 porción (150g)', chOrig: 22, igOrig: 60, sustituto: 'Papaya Verde Rallada (Som Tum)', cantSust: '1 porción (100g)', chSust: 8, igSust: 30, ahorro: 14, tip: 'La papaya verde no ha desarrollado azúcares simples y es extremadamente rica en enzima papaína digestiva.' }
+    ];
+
+    function App() {
+      const allDays = useMemo(() => generate100DaysThaiMenu(), []);
+      
+      // States
+      const [diaActual, setDiaActual] = useState(1);
+      const [pestana, setPestana] = useState('planificador'); // planificador | sustitutor | plato | tips
+      const [busqueda, setBusqueda] = useState('');
+      const [filtroCategoria, setFiltroCategoria] = useState('Todos');
+      
+      // LocalStorage Persistence for Checkboxes & Favorites
+      const [comidasCompletadas, setComidasCompletadas] = useState(() => {
+        try {
+          const saved = localStorage.getItem('gluco_thai_completadas');
+          return saved ? JSON.parse(saved) : {};
+        } catch (e) {
+          return {};
+        }
+      });
+
+      const [favoritos, setFavoritos] = useState(() => {
+        try {
+          const saved = localStorage.getItem('gluco_thai_favs');
+          return saved ? JSON.parse(saved) : [];
+        } catch (e) {
+          return [];
+        }
+      });
+
+      useEffect(() => {
+        try {
+          localStorage.setItem('gluco_thai_completadas', JSON.stringify(comidasCompletadas));
+        } catch (e) {}
+      }, [comidasCompletadas]);
+
+      useEffect(() => {
+        try {
+          localStorage.setItem('gluco_thai_favs', JSON.stringify(favoritos));
+        } catch (e) {}
+      }, [favoritos]);
+
+      // Current Day Object
+      const dayData = useMemo(() => {
+        return allDays.find(d => d.dia === diaActual) || allDays[0];
+      }, [allDays, diaActual]);
+
+      // Toggle Meal Checkbox
+      const toggleMealCheck = (diaNum, tiempoKey) => {
+        const key = `d${diaNum}_${tiempoKey}`;
+        setComidasCompletadas(prev => ({
+          ...prev,
+          [key]: !prev[key]
+        }));
+      };
+
+      // Toggle Favorite Day
+      const toggleFavorito = (diaNum) => {
+        setFavoritos(prev => 
+          prev.includes(diaNum) ? prev.filter(id => id !== diaNum) : [...prev, diaNum]
+        );
+      };
+
+      // Filtered Days List
+      const diasFiltrados = useMemo(() => {
+        return allDays.filter(d => {
+          const coincideTexto = d.titulo.toLowerCase().includes(busqueda.toLowerCase()) ||
+            d.comidas.almuerzo.nombre.toLowerCase().includes(busqueda.toLowerCase());
+          const coincideCat = filtroCategoria === 'Todos' || d.categoria === filtroCategoria;
+          return coincideTexto && coincideCat;
+        });
+      }, [allDays, busqueda, filtroCategoria]);
+
+      // Calculate progress stats
+      const totalComidasChecked = Object.values(comidasCompletadas).filter(Boolean).length;
+      const porcentajeProgreso = Math.min(100, Math.round((totalComidasChecked / (100 * 5)) * 100));
+
+      return (
+        <div className="w-full max-w-5xl mx-auto p-3 sm:p-6 space-y-6">
+          
+          {/* HEADER PRINCIPAL */}
+          <header className="bg-white rounded-2xl p-5 sm:p-6 shadow-sm border border-slate-200/80 transition-all">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center space-x-3">
+                <div className="p-3 bg-emerald-500/10 rounded-xl text-emerald-600">
+                  <Leaf className="w-8 h-8" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <span className="bg-emerald-100 text-emerald-800 text-xs font-semibold px-2.5 py-0.5 rounded-full">
+                      100D Tailandia Diabéticos T2
+                    </span>
+                    <span className="text-xs text-slate-500 font-medium hidden sm:inline">
+                      Adaptado a Insumos Tailandeses
+                    </span>
+                  </div>
+                  <h1 className="text-2xl font-bold text-slate-900 mt-0.5">
+                    GlucoMenú Tailandés 100D
+                  </h1>
+                </div>
+              </div>
+
+              {/* BARRA DE PROGRESO GLOBAL */}
+              <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 flex items-center space-x-4 min-w-[240px]">
+                <div className="flex-1">
+                  <div className="flex justify-between text-xs font-semibold text-slate-700 mb-1">
+                    <span>Adherencia de Comidas</span>
+                    <span className="text-emerald-600">{porcentajeProgreso}%</span>
+                  </div>
+                  <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
+                    <div 
+                      className="bg-emerald-500 h-full rounded-full transition-all duration-500"
+                      style={{ width: `${porcentajeProgreso}%` }}
+                    ></div>
+                  </div>
+                </div>
+                <div className="text-center pl-2 border-l border-slate-200">
+                  <Award className="w-5 h-5 text-amber-500 mx-auto" />
+                  <span className="text-[10px] text-slate-500 font-medium">Meta 100D</span>
+                </div>
+              </div>
+            </div>
+
+            {/* NAVEGACIÓN POR PESTAÑAS */}
+            <nav className="flex flex-wrap gap-2 mt-6 pt-4 border-t border-slate-100">
+              <button
+                onClick={() => setPestana('planificador')}
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                  pestana === 'planificador'
+                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <Calendar className="w-4 h-4" />
+                <span>1. Menú 100 Días Thai</span>
+              </button>
+
+              <button
+                onClick={() => setPestana('sustitutor')}
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                  pestana === 'sustitutor'
+                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <RefreshCw className="w-4 h-4" />
+                <span>2. Sustitutor Tailandés</span>
+              </button>
+
+              <button
+                onClick={() => setPestana('plato')}
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                  pestana === 'plato'
+                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <PieChartIcon className="w-4 h-4" />
+                <span>3. Método del Plato Thai</span>
+              </button>
+
+              <button
+                onClick={() => setPestana('tips')}
+                className={`flex items-center space-x-2 px-4 py-2.5 rounded-xl font-medium text-sm transition-all duration-200 ${
+                  pestana === 'tips'
+                    ? 'bg-emerald-700 text-white shadow-md shadow-emerald-200'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <ShieldCheck className="w-4 h-4" />
+                <span>4. Secretos Anti-Pico Thai</span>
+              </button>
+            </nav>
+          </header>
+
+          {}
+          {pestana === 'planificador' && (
+            <div className="space-y-6 animate-fade-in">
+              
+              {/* CONTROLES DE BUSQUEDA Y SELECTOR DE DÍA */}
+              <div className="bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
+                  
+                  {/* Navegación Día Anterior / Siguiente */}
+                  <div className="flex items-center space-x-2 w-full sm:w-auto justify-between">
+                    <button
+                      onClick={() => setDiaActual(prev => Math.max(1, prev - 1))}
+                      disabled={diaActual === 1}
+                      className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-40 text-slate-700 transition-all"
+                      title="Día Anterior"
+                    >
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold text-slate-700">Día</span>
+                      <select
+                        value={diaActual}
+                        onChange={(e) => setDiaActual(Number(e.target.value))}
+                        className="bg-slate-100 border border-slate-300 text-slate-900 font-bold text-sm rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-emerald-500 outline-none"
+                      >
+                        {allDays.map(d => (
+                          <option key={d.dia} value={d.dia}>
+                            Día {d.dia} - {d.comidas.almuerzo.nombre.split(' con ')[0]}
+                          </option>
+                        ))}
+                      </select>
+                      <span className="text-sm text-slate-500 font-medium">de 100</span>
+                    </div>
+
+                    <button
+                      onClick={() => setDiaActual(prev => Math.min(100, prev + 1))}
+                      disabled={diaActual === 100}
+                      className="p-2 bg-slate-100 hover:bg-slate-200 rounded-lg disabled:opacity-40 text-slate-700 transition-all"
+                      title="Día Siguiente"
+                    >
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  {/* Búsqueda rápida */}
+                  <div className="relative w-full sm:w-64">
+                    <Search className="w-4 h-4 absolute left-3 top-3 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Buscar plato (ej: Pad Thai, Tom Yum)..."
+                      value={busqueda}
+                      onChange={(e) => setBusqueda(e.target.value)}
+                      className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-xs focus:ring-2 focus:ring-emerald-500 outline-none"
+                    />
+                  </div>
+
+                  <button
+                    onClick={() => toggleFavorito(diaActual)}
+                    className={`p-2.5 rounded-xl border flex items-center space-x-2 text-xs font-semibold transition-all ${
+                      favoritos.includes(diaActual)
+                        ? 'bg-amber-50 border-amber-300 text-amber-700'
+                        : 'bg-slate-50 border-slate-200 text-slate-600 hover:bg-slate-100'
+                    }`}
+                  >
+                    <Bookmark className={`w-4 h-4 ${favoritos.includes(diaActual) ? 'fill-amber-500 text-amber-500' : ''}`} />
+                    <span>{favoritos.includes(diaActual) ? 'Guardado en Favoritos' : 'Guardar Día'}</span>
+                  </button>
+                </div>
+
+                {/* Resultados de búsqueda flotantes */}
+                {busqueda && (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 max-h-40 overflow-y-auto space-y-1">
+                    <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider mb-2">
+                      Resultados encontrados ({diasFiltrados.length}):
+                    </p>
+                    {diasFiltrados.length === 0 ? (
+                      <p className="text-xs text-slate-500">No se encontraron platillos con "{busqueda}".</p>
+                    ) : (
+                      diasFiltrados.map(d => (
+                        <button
+                          key={d.dia}
+                          onClick={() => { setDiaActual(d.dia); setBusqueda(''); }}
+                          className="w-full text-left p-2 rounded-lg hover:bg-emerald-50 text-xs flex justify-between items-center transition-colors"
+                        >
+                          <span className="font-semibold text-slate-800">Día {d.dia}: {d.titulo}</span>
+                          <span className="text-emerald-700 font-medium">{d.totalCarbohidratos}g CH</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {}
+              <div className="bg-gradient-to-r from-emerald-950 via-slate-900 to-teal-950 rounded-2xl p-5 sm:p-6 text-white shadow-lg space-y-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-emerald-900/60 pb-4">
+                  <div>
+                    <div className="flex items-center space-x-2">
+                      <span className="bg-emerald-500/20 text-emerald-300 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-emerald-500/30">
+                        {dayData.categoria}
+                      </span>
+                      <span className="text-xs text-slate-400">
+                        {favoritos.includes(diaActual) ? '★ Guardado en Favoritos' : ''}
+                      </span>
+                    </div>
+                    <h2 className="text-xl sm:text-2xl font-bold mt-1 text-amber-100">
+                      {dayData.titulo}
+                    </h2>
+                  </div>
+
+                  <div className="bg-slate-800/80 p-3 rounded-xl border border-slate-700 text-center min-w-[140px]">
+                    <span className="text-xs text-slate-400 block font-medium">Carbohidratos Totales</span>
+                    <span className="text-2xl font-extrabold text-emerald-400">{dayData.totalCarbohidratos}g</span>
+                    <span className="text-[10px] text-slate-400 block">Límite recomendado: &lt;130g/día</span>
+                  </div>
+                </div>
+
+                {/* SECRETOS ANTI-PICO DEL DÍA */}
+                <div className="bg-slate-800/50 p-3.5 rounded-xl border border-slate-700/60 flex items-start space-x-3 text-xs text-slate-300">
+                  <Flame className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong className="text-amber-200 font-semibold block mb-0.5">Recomendación Práctica Anti-Pico Tailandesa:</strong>
+                    {dayData.tipAntiPico}
+                  </div>
+                </div>
+              </div>
+
+              {}
+              <div className="space-y-4">
+                <h3 className="text-base font-bold text-slate-800 flex items-center space-x-2">
+                  <Utensils className="w-5 h-5 text-emerald-700" />
+                  <span>Distribución de 5 Comidas Tailandesas Medidas</span>
+                </h3>
+
+                <div className="grid grid-cols-1 gap-4">
+                  {Object.entries(dayData.comidas).map(([tiempoKey, comida]) => {
+                    const isChecked = !!comidasCompletadas[`d${diaActual}_${tiempoKey}`];
+                    return (
+                      <div 
+                        key={tiempoKey}
+                        className={`bg-white p-4 sm:p-5 rounded-2xl border transition-all duration-200 shadow-sm ${
+                          isChecked ? 'border-emerald-300 bg-emerald-50/30' : 'border-slate-200/80 hover:border-slate-300'
+                        }`}
+                      >
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                          <div className="flex items-start space-x-3">
+                            <button
+                              onClick={() => toggleMealCheck(diaActual, tiempoKey)}
+                              className={`mt-1 p-1 rounded-lg transition-colors ${
+                                isChecked ? 'bg-emerald-600 text-white' : 'bg-slate-100 text-slate-400 hover:bg-slate-200'
+                              }`}
+                              title={isChecked ? "Marcar como no consumido" : "Marcar como completado"}
+                            >
+                              <CheckCircle2 className="w-5 h-5" />
+                            </button>
+
+                            <div>
+                              <div className="flex items-center space-x-2">
+                                <span className="text-xs font-bold text-emerald-700 uppercase tracking-wider">
+                                  {comida.tiempo}
+                                </span>
+                                <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded">
+                                  ~{comida.ch}g CH
+                                </span>
+                              </div>
+                              <h4 className={`text-base font-bold mt-0.5 ${isChecked ? 'line-through text-slate-400' : 'text-slate-900'}`}>
+                                {comida.nombre}
+                              </h4>
+                              <p className="text-xs text-slate-600 mt-1 leading-relaxed">
+                                {comida.desc}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="bg-slate-50 p-3 rounded-xl border border-slate-100 text-xs text-slate-600 sm:max-w-xs w-full">
+                            <strong className="text-slate-800 font-semibold block mb-0.5 flex items-center space-x-1">
+                              <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Preparación con Insumos Thai:</span>
+                            </strong>
+                            <p className="text-[11px] leading-normal">{comida.prep}</p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {}
+          {pestana === 'sustitutor' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                    <RefreshCw className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Matriz de Sustituciones Inteligentes de Tailandia
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Disfruta el auténtico sabor de Bangkok y Chiang Mai sustituyendo los carbohidratos de alto impacto.
+                    </p>
+                  </div>
+                </div>
+
+                {/* LISTA DE SUSTITUCIONES */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+                  {SUSTITUCIONES_THAI.map((item) => (
+                    <div 
+                      key={item.id}
+                      className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-3 hover:border-emerald-300 transition-all"
+                    >
+                      <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+                        <span className="text-xs font-bold text-slate-500 uppercase">Intercambio #{item.id}</span>
+                        <span className="bg-emerald-100 text-emerald-800 text-xs font-bold px-2 py-0.5 rounded-full">
+                          Ahorras {item.ahorro}g de CH
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="bg-rose-50 p-2.5 rounded-lg border border-rose-100">
+                          <span className="text-[10px] text-rose-600 font-bold block uppercase">Original Alto IG</span>
+                          <strong className="text-slate-800 block mt-0.5">{item.original}</strong>
+                          <span className="text-slate-500 text-[11px] block">{item.cantOrig}</span>
+                          <span className="text-rose-700 font-extrabold block mt-1">{item.chOrig}g CH (IG: {item.igOrig})</span>
+                        </div>
+
+                        <div className="bg-emerald-50 p-2.5 rounded-lg border border-emerald-100">
+                          <span className="text-[10px] text-emerald-600 font-bold block uppercase">Sustituto Saludable</span>
+                          <strong className="text-slate-800 block mt-0.5">{item.sustituto}</strong>
+                          <span className="text-slate-500 text-[11px] block">{item.cantSust}</span>
+                          <span className="text-emerald-700 font-extrabold block mt-1">{item.chSust}g CH (IG: {item.igSust})</span>
+                        </div>
+                      </div>
+
+                      <div className="p-2.5 bg-white rounded-lg border border-slate-200/80 text-[11px] text-slate-600">
+                        <strong className="text-emerald-900 font-semibold block mb-0.5">Truco de cocina tailandesa:</strong>
+                        {item.tip}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {}
+          {pestana === 'plato' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+                
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-amber-500/10 text-amber-600 rounded-xl">
+                    <PieChartIcon className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Método del Plato Tailandés para Diabetes Tipo 2
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Visualiza las porciones ideales para mantener tus glucosas estables sin contar calorías complejas.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+                  
+                  {/* GRAFICO DEL PLATO THAI */}
+                  <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200 min-h-[280px]">
+                    <h3 className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">
+                      Distribución Visual del Plato Thai (9 pulgadas)
+                    </h3>
+
+                    <div className="w-56 h-56 relative rounded-full border-4 border-slate-300 shadow-md overflow-hidden flex flex-wrap">
+                      {/* Vegetales (50%) */}
+                      <div className="w-full h-1/2 plate-gradient-veg border-b-2 border-white flex flex-col items-center justify-center p-2 text-center">
+                        <span className="text-xs font-black text-emerald-900 uppercase">50% Vegetales y Hierbas</span>
+                        <span className="text-[10px] text-emerald-800 font-medium leading-tight">
+                          Pak Choy, Gai Lan, Repollo, Pepino, Lemongrass, Albahaca Krapow
+                        </span>
+                      </div>
+
+                      {/* Proteína (25%) */}
+                      <div className="w-1/2 h-1/2 plate-gradient-prot border-r-2 border-white flex flex-col items-center justify-center p-2 text-center">
+                        <span className="text-xs font-black text-indigo-900 uppercase">25% Proteína Magra</span>
+                        <span className="text-[10px] text-indigo-800 font-medium leading-tight">
+                          Pescado blanco, Camarones, Pechuga Pollo, Tofu firme
+                        </span>
+                      </div>
+
+                      {/* Carbohidrato Bajo IG (25%) */}
+                      <div className="w-1/2 h-1/2 plate-gradient-carb flex flex-col items-center justify-center p-2 text-center">
+                        <span className="text-xs font-black text-amber-900 uppercase">25% Carbohidrato Medido</span>
+                        <span className="text-[10px] text-amber-800 font-medium leading-tight">
+                          Arroz de Coliflor, Fideos Shirataki, 40g Camote Thai
+                        </span>
+                      </div>
+                    </div>
+
+                    <p className="text-[11px] text-slate-500 mt-3 text-center">
+                      ✓ Regla de Oro: Sirve primero la ensalada o vegetales al wok para formar una barrera de fibra.
+                    </p>
+                  </div>
+
+                  {/* EXPLICACION Y GUÍA VISUAL */}
+                  <div className="space-y-4 text-xs">
+                    <div className="p-3.5 bg-emerald-50 rounded-xl border border-emerald-200">
+                      <strong className="text-emerald-900 font-bold block mb-1">1. La Mitad (50%): Vegetales y Hierbas Medicinales Thai</strong>
+                      <p className="text-emerald-800 leading-relaxed">
+                        Brotes de soya (Tua Mawk), brócoli chino (Gai Lan), repollo crudo, pepino tailandés, albahaca sagrada, berenjenas redondas thai. Aportan agua, fibra y fitoquímicos.
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 bg-indigo-50 rounded-xl border border-indigo-200">
+                      <strong className="text-indigo-900 font-bold block mb-1">2. Un Cuarto (25%): Proteína Magra</strong>
+                      <p className="text-indigo-800 leading-relaxed">
+                        Pescado al vapor (Pla Nueng), camarones frescos, pechuga de pollo marinada en cúrcuma (Satay), tofu firme salteado o huevo al vapor (Kai Tohn).
+                      </p>
+                    </div>
+
+                    <div className="p-3.5 bg-amber-50 rounded-xl border border-amber-200">
+                      <strong className="text-amber-900 font-bold block mb-1">3. Un Cuarto (25%): Carbohidratos de Bajo Impacto Glucémico</strong>
+                      <p className="text-amber-800 leading-relaxed">
+                        Arroz de coliflor refrito al wok, fideos de konjac (Shirataki), 40g de camote tailandés horneado enfriado o 50g de arroz integral Jasmine.
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+            </div>
+          )}
+
+          {}
+          {pestana === 'tips' && (
+            <div className="space-y-6 animate-fade-in">
+              <div className="bg-white p-5 sm:p-6 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                
+                <div className="flex items-center space-x-3">
+                  <div className="p-3 bg-emerald-500/10 text-emerald-600 rounded-xl">
+                    <ShieldCheck className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-lg font-bold text-slate-900">
+                      Secretos Anti-Pico de la Medicina Herbal y Culinaria Tailandesa
+                    </h2>
+                    <p className="text-xs text-slate-500">
+                      Estrategias tradicionales aprobadas por la nutrición moderna para aplanar las curvas de glucosa postprandial.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                  
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center space-x-2 text-emerald-700 font-bold text-xs uppercase">
+                      <BookOpen className="w-4 h-4" />
+                      <span>1. El Melón Amargo Tailandés (Mara)</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      El melón amargo (Bitter Melon) contiene polipéptido-P y charantina, moléculas naturales con estructura similar a la insulina. Consumir una porción chica antes del almuerzo promueve la captación celular de glucosa.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center space-x-2 text-emerald-700 font-bold text-xs uppercase">
+                      <Flame className="w-4 h-4" />
+                      <span>2. Lemongrass y Galanga como Antioxidantes</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Las sopas claras como Tom Yum y Poh Tak utilizan abundantes raíces de galanga y hierba luisa. Sus aceites esenciales reducen la inflamación sistémica vascular generada por la hiperglucemia.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center space-x-2 text-emerald-700 font-bold text-xs uppercase">
+                      <ShieldCheck className="w-4 h-4" />
+                      <span>3. Vinagre de Coco y Zumo de Lima Sutil</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      Aderezar con lima fresca o vinagre de coco 10 minutos antes del plato principal retrasa la velocidad de vaciado del estómago, evitando picos repentinos en el glucómetro.
+                    </p>
+                  </div>
+
+                  <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-2">
+                    <div className="flex items-center space-x-2 text-emerald-700 font-bold text-xs uppercase">
+                      <Heart className="w-4 h-4" />
+                      <span>4. Sustitución Radical de Azúcar de Palma</span>
+                    </div>
+                    <p className="text-xs text-slate-600 leading-relaxed">
+                      La cocina callejera tailandesa suele abusar del azúcar de palma dulce. Al preparar tus curries o Pad Thai casero, sustitúyela por gotas de fruto del monje o estevia pura sin alterar la experiencia sensorial.
+                    </p>
+                  </div>
+
+                </div>
+
+                <div className="p-4 bg-amber-50 rounded-xl border border-amber-200 text-xs text-amber-900">
+                  <strong className="font-bold block mb-1">Nota médica de recomendación:</strong>
+                  Este planificador interactivo es un instrumento educativo de acompañamiento nutricional orientado a la Diabetes Tipo 2. Ajuste siempre sus medicamentos e insulinas bajo supervisión de su médico endocrinólogo o nutricionista clínico.
+                </div>
+
+              </div>
+            </div>
+          )}
+
+          {/* FOOTER */}
+          <footer className="text-center text-xs text-slate-400 py-4 border-t border-slate-200/60">
+            GlucoMenú Tailandés 100D • Guía interactiva de alimentación baja en carbohidratos para Diabetes Tipo 2
+          </footer>
+
+        </div>
+      );
+    }
+
+    const rootElement = document.getElementById('root');
+    const root = createRoot(rootElement);
+    root.render(<App />);
+  </script>
+</body>
+</html>
